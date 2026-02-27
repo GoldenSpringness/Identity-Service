@@ -1,0 +1,73 @@
+services:
+  identity-db:
+    image: postgres:16-alpine
+    container_name: identity-db
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: identity_user
+      POSTGRES_PASSWORD: identity_password
+      POSTGRES_DB: identity_db
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    networks:
+      - identity-network
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U identity_user -d identity_db"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+
+  # identity-redis:
+  #   image: redis:7-alpine
+  #   container_name: identity-redis
+  #   restart: unless-stopped
+  #   ports:
+  #     - "6379:6379"
+  #   volumes:
+  #     - redis_data:/data
+  #   networks:
+  #     - identity-network
+  #   healthcheck:
+  #     test: ["CMD", "redis-cli", "ping"]
+  #     interval: 5s
+  #     timeout: 3s
+  #     retries: 5
+
+  # identity-api:
+  #   build:
+  #     context: .
+  #     dockerfile: Dockerfile
+  #   container_name: identity-api
+  #   restart: unless-stopped
+  #   depends_on:
+  #     identity-db:
+  #       condition: service_healthy
+  #     identity-redis:
+  #       condition: service_healthy
+  #   environment:
+  #     DATABASE_URL: postgresql+psycopg2://identity_user:identity_password@identity-db:5432/identity_db
+  #     REDIS_URL: redis://identity-redis:6379/0
+  #     JWT_PRIVATE_KEY_PATH: /app/keys/private.pem
+  #     JWT_PUBLIC_KEY_PATH: /app/keys/public.pem
+  #     ACCESS_TOKEN_EXPIRE_MINUTES: 15
+  #     REFRESH_TOKEN_EXPIRE_DAYS: 7
+  #     ENVIRONMENT: development
+  #   ports:
+  #     - "8000:8000"
+  #   volumes:
+  #     - .:/app
+  #   networks:
+  #     - identity-network
+  #   command: >
+  #     sh -c "uv run alembic upgrade head &&
+  #           uv run uvicorn app.main:app --host 0.0.0.0 --port 8000 --reload"
+
+networks:
+  identity-network:
+    driver: bridge
+
+volumes:
+  postgres_data:
+  redis_data:
